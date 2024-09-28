@@ -48,7 +48,6 @@
 , withLibunwind ? lib.meta.availableOn stdenv.hostPlatform libunwind
 , enableGalliumNine ? stdenv.isLinux
 , enableOSMesa ? stdenv.isLinux
-, enableOpenCL ? stdenv.isLinux && stdenv.isx86_64
 , enableTeflon ? stdenv.isLinux && stdenv.isAarch64  # currently only supports aarch64 SoCs, may change in the future
 , enablePatentEncumberedCodecs ? true
 
@@ -66,7 +65,7 @@
     "svga" # VMWare virtualized GPU
     "virgl" # QEMU virtualized GPU (aka VirGL)
     "zink" # generic OpenGL over Vulkan, experimental
-  ] ++ lib.optionals (stdenv.isAarch64 || stdenv.isAarch32) [
+  ] ++ lib.optionals (stdenv.isAarch64) [
     "etnaviv" # Vivante GPU designs (mostly NXP/Marvell SoCs)
     "freedreno" # Qualcomm Adreno (all Qualcomm SoCs)
     "lima" # ARM Mali 4xx
@@ -75,16 +74,12 @@
   ] ++ lib.optionals stdenv.isAarch64 [
     "tegra" # Nvidia Tegra SoCs
     "v3d" # Broadcom VC5 (Raspberry Pi 4)
-  ] ++ lib.optionals stdenv.hostPlatform.isx86 [
-    "crocus" # Intel legacy, x86 only
-    "i915" # Intel extra legacy, x86 only
-  ]
+  ] 
   else [ "auto" ]
 , vulkanDrivers ?
   if stdenv.isLinux
   then [
     "amd" # AMD (aka RADV)
-    "intel" # new Intel (aka ANV)
     "microsoft-experimental" # WSL virtualized GPU (aka DZN/Dozen)
     "nouveau" # Nouveau (aka NVK)
     "swrast" # software renderer (aka Lavapipe)
@@ -97,8 +92,6 @@
     "freedreno" # Qualcomm Adreno (all Qualcomm SoCs)
     "imagination-experimental" # PowerVR Rogue (currently N/A)
     "panfrost" # ARM Mali Midgard and up (T/G series)
-  ] ++ lib.optionals stdenv.hostPlatform.isx86 [
-    "intel_hasvk" # Intel Haswell/Broadwell, "legacy" Vulkan driver (https://www.phoronix.com/news/Intel-HasVK-Drop-Dead-Code)
   ]
   else [ "auto" ]
 , eglPlatforms ? [ "x11" ] ++ lib.optionals stdenv.isLinux [ "wayland" ]
@@ -233,19 +226,15 @@ self = stdenv.mkDerivation {
     # Don't build in debug mode
     # https://gitlab.freedesktop.org/mesa/mesa/blob/master/docs/meson.html#L327
     (lib.mesonBool "b_ndebug" true)
-
     (lib.mesonOption "dri-search-path" "${libglvnd.driverLink}/lib/dri")
-
     (lib.mesonOption "platforms" (lib.concatStringsSep "," eglPlatforms))
     (lib.mesonOption "gallium-drivers" (lib.concatStringsSep "," galliumDrivers))
     (lib.mesonOption "vulkan-drivers" (lib.concatStringsSep "," vulkanDrivers))
-
     (lib.mesonOption "dri-drivers-path" "${placeholder "drivers"}/lib/dri")
     (lib.mesonOption "vdpau-libs-path" "${placeholder "drivers"}/lib/vdpau")
     (lib.mesonOption "omx-libs-path" "${placeholder "drivers"}/lib/bellagio")
     (lib.mesonOption "va-libs-path" "${placeholder "drivers"}/lib/dri")
     (lib.mesonOption "d3d-drivers-path" "${placeholder "drivers"}/lib/d3d")
-
     (lib.mesonBool "gallium-nine" enableGalliumNine) # Direct3D in Wine
     (lib.mesonBool "osmesa" enableOSMesa) # used by wine
     (lib.mesonBool "teflon" enableTeflon) # TensorFlow frontend
